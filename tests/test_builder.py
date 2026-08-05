@@ -14,6 +14,7 @@ from pyxform.errors import ErrorCode, PyXFormError
 from pyxform.utils import print_pyobj_to_json
 
 from tests import utils
+from tests.pyxform_test_case import PyxformTestCase
 
 FIXTURE_FILETYPE = "xls"
 
@@ -586,3 +587,28 @@ class BuilderTests(TestCase):
             SurveyElementBuilder().create_survey_element_from_dict(d)
         self.assertEqual(ErrorCode.INTERNAL_001, e.exception.code)
         self.assertEqual({"type": "<class 'str'>", "value": "${q1}"}, e.exception.context)
+
+
+class BuilderJsonRoundTripTests(PyxformTestCase):
+    def test_trigger_survives_json_round_trip(self):
+        """Should rebuild a survey with a trigger from its JSON representation."""
+        # A JSON round-trip converts the processed trigger tuple to a list, e.g. when a
+        # survey is stored as JSON and rebuilt with create_survey_element_from_json.
+        md = """
+        | survey |
+        |        | type    | name | label | trigger | calculation |
+        |        | integer | q1   | Q1    |         |             |
+        |        | text    | q2   | Q2    | ${q1}   | 1 + 1       |
+        """
+        result = self.assertPyxformXform(
+            md=md,
+            name="trigger-column",
+            xml__xpath_match=[
+                "/h:html/h:body/x:input[@ref='/trigger-column/q1']"
+                + "/x:setvalue[@event='xforms-value-changed'"
+                + "  and @ref='/trigger-column/q2' and @value='1 + 1']",
+            ],
+        )
+        survey = result._survey
+        rebuilt = SurveyElementBuilder().create_survey_element_from_json(survey.to_json())
+        self.assertEqual(survey.to_xml(validate=False), rebuilt.to_xml(validate=False))

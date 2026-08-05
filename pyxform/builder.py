@@ -127,7 +127,10 @@ class SurveyElementBuilder:
         trigger = d.get("trigger")
         if not trigger:
             return
-        elif not isinstance(trigger, tuple):
+        elif isinstance(trigger, list):
+            # A JSON round-trip e.g. Survey.to_json() converts tuples to lists.
+            trigger = tuple(trigger)
+        if not isinstance(trigger, tuple):
             # Guard against e.g. "${a}" being processed as ("$", "{", "a", "}")
             raise PyXFormError(
                 code=ErrorCode.INTERNAL_001,
